@@ -1,7 +1,7 @@
 
 ## 用法
 
-### 用法一： Request/Response
+### 用法一: Request/Response
 
 server
 
@@ -32,7 +32,7 @@ fmt.Println(string(resp.Body)) // reply
 
 ```
 
-### 用法二 Send/Receive
+### 用法二: Send/Receive
 
 server
 
@@ -59,8 +59,8 @@ _ = cli.Start()
 
 
 err = cli.Send(&proto.Message{
-		MsgType: 1,
-		Content: []byte("hi"),
+	MsgType: 1,
+	Content: []byte("hi"),
 })
 
 ```

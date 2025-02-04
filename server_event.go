@@ -207,6 +207,12 @@ func (s *Server) handleRequest(conn gnet.Conn, req *proto.Request) {
 }
 
 func (s *Server) Request(uid string, p string, body []byte) (*proto.Response, error) {
+	timeoutCtx, cancel := context.WithTimeout(context.Background(), s.opts.RequestTimeout)
+	defer cancel()
+	return s.RequestWithContext(timeoutCtx, uid, p, body)
+}
+
+func (s *Server) RequestWithContext(ctx context.Context, uid string, p string, body []byte) (*proto.Response, error) {
 	conn := s.connManager.GetConn(uid)
 	if conn == nil {
 		return nil, errors.New("conn is nil")
@@ -234,8 +240,7 @@ func (s *Server) Request(uid string, p string, body []byte) (*proto.Response, er
 	if err != nil {
 		return nil, err
 	}
-	timeoutCtx, cancel := context.WithTimeout(context.Background(), s.opts.RequestTimeout)
-	defer cancel()
+
 	select {
 	case x := <-ch:
 		if x == nil {
@@ -246,9 +251,9 @@ func (s *Server) Request(uid string, p string, body []byte) (*proto.Response, er
 			s.opts.OnResponse(conn, resp)
 		}
 		return resp, nil
-	case <-timeoutCtx.Done():
+	case <-ctx.Done():
 		s.w.Trigger(r.Id, nil)
-		return nil, timeoutCtx.Err()
+		return nil, ctx.Err()
 	}
 }
 

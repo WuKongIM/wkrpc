@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/WuKongIM/WuKongIM/pkg/wkutil"
 	"github.com/WuKongIM/wklog"
 	"github.com/WuKongIM/wkrpc/proto"
 	"github.com/panjf2000/gnet/v2"
@@ -73,7 +72,7 @@ func (c *conn) startDial() {
 		proto = "tcp"
 		addr = c.addr
 	}
-	c.no = wkutil.GenUUID()
+	c.no = GenUUID()
 	if c.gc != nil {
 		_ = c.gc.Close()
 		c.gc = nil

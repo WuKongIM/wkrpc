@@ -47,7 +47,7 @@ func newConn(addr string, c *Client) *conn {
 		Log:  wklog.NewWKLog(fmt.Sprintf("conn[%s]", addr)),
 		addr: addr,
 	}
-
+	cn.status.Store(Disconnect)
 	return cn
 }
 

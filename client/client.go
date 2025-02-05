@@ -44,6 +44,8 @@ type Client struct {
 	w     wait.Wait
 
 	batchRead int // 连接进来数据后，每次数据读取批数，超过此次数后下次再读
+
+	messagePool *ants.Pool
 }
 
 func New(addr string, opt ...Option) *Client {
@@ -83,6 +85,14 @@ func New(addr string, opt ...Option) *Client {
 		return nil
 	}
 	c.cli = gc
+
+	messagePool, err := ants.NewPool(opts.MessagePoolSize, ants.WithNonblocking(true), ants.WithPanicHandler(func(i interface{}) {
+		c.Panic("message pool panic", zap.Any("panic", i), zap.Stack("stack"))
+	}))
+	if err != nil {
+		c.Panic("new message pool error", zap.Error(err))
+	}
+	c.messagePool = messagePool
 
 	return c
 }
@@ -140,6 +150,10 @@ func (c *Client) Send(m *proto.Message) error {
 		return err
 	}
 	return nil
+}
+
+func (c *Client) OnMessage(h func(msg *proto.Message)) {
+	c.opts.OnMessage = h
 }
 
 func (c *Client) Request(p string, body []byte) (*proto.Response, error) {
@@ -239,6 +253,29 @@ func (c *Client) handleData(data []byte, msgType proto.MsgType, remoteAddr strin
 			return
 		}
 		c.w.Trigger(resp.Id, resp)
+	} else if msgType == proto.MsgTypeMessage {
+		msg := &proto.Message{}
+		err := msg.Unmarshal(data)
+		if err != nil {
+			c.Debug("unmarshal error", zap.Error(err))
+			return
+		}
+		if c.opts.MessagePoolOn {
+			if c.messagePool.Running() > c.opts.MessagePoolSize-10 {
+				c.Warn("message pool will full", zap.Int("running", c.messagePool.Running()), zap.Int("size", c.opts.MessagePoolSize))
+			}
+			err = c.messagePool.Submit(func(m *proto.Message) func() {
+				return func() {
+					c.handleMessage(m)
+				}
+
+			}(msg))
+			if err != nil {
+				c.Error("submit handleMessage error", zap.Error(err))
+			}
+		} else {
+			c.handleMessage(msg)
+		}
 	} else if msgType == proto.MsgTypeHeartbeat {
 
 	} else if msgType == proto.MsgTypeConnack {
@@ -265,4 +302,10 @@ func (c *Client) handleRequest(r *proto.Request) {
 	ctx.req = r
 	handler(ctx)
 
+}
+
+func (c *Client) handleMessage(msg *proto.Message) {
+	if c.opts.OnMessage != nil {
+		c.opts.OnMessage(msg)
+	}
 }

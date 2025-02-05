@@ -171,7 +171,7 @@ func (s *everyScheduler) Next(prev time.Time) time.Time {
 }
 
 func ParseProtoAddr(protoAddr string) (string, string, error) {
-	protoAddr = strings.ToLower(protoAddr)
+	// protoAddr = strings.ToLower(protoAddr)
 	if strings.Count(protoAddr, "://") != 1 {
 		return "", "", errors.ErrInvalidNetworkAddress
 	}

@@ -46,6 +46,8 @@ type Client struct {
 	batchRead int // 连接进来数据后，每次数据读取批数，超过此次数后下次再读
 
 	messagePool *ants.Pool
+	// 连接状态变化回调
+	onConnectChanged func(status ConnStatus)
 }
 
 func New(addr string, opt ...Option) *Client {
@@ -125,11 +127,11 @@ func (c *Client) Route(p string, h Handler) {
 }
 
 func (c *Client) IsAuthed() bool {
-	return c.conn().status.Load() == authed
+	return c.conn().status.Load() == Authed
 }
 
 func (c *Client) Send(m *proto.Message) error {
-	if c.conn().status.Load() != authed {
+	if c.conn().status.Load() != Authed {
 		return errors.New("connect is not connected")
 	}
 	msgData, err := m.Marshal()
@@ -152,8 +154,14 @@ func (c *Client) Send(m *proto.Message) error {
 	return nil
 }
 
+// OnMessage 消息回调
 func (c *Client) OnMessage(h func(msg *proto.Message)) {
 	c.opts.OnMessage = h
+}
+
+// OnConnectChanged 连接状态变化回调
+func (c *Client) OnConnectChanged(h func(status ConnStatus)) {
+	c.onConnectChanged = h
 }
 
 func (c *Client) Request(p string, body []byte) (*proto.Response, error) {
@@ -167,7 +175,7 @@ func (c *Client) RequestWithContext(ctx context.Context, p string, body []byte) 
 	if c.conn() == nil {
 		return nil, errors.New("conn is nil")
 	}
-	if c.conn().status.Load() != authed {
+	if c.conn().status.Load() != Authed {
 		c.Error("connect not authed", zap.String("addr", c.opts.Addr), zap.String("path", p))
 		return nil, errors.New("connect not authed")
 	}

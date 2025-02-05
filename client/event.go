@@ -15,15 +15,15 @@ func (c *clientEvent) OnTick() (delay time.Duration, action gnet.Action) {
 	delay = 100 * time.Millisecond
 	for _, conn := range c.c.conns {
 
-		if conn.status.CompareAndSwap(disconnect, connecting) {
+		if conn.status.CompareAndSwap(Disconnect, Connecting) {
 			go conn.startDial()
 		}
 
-		if conn.status.Load() != authed && conn.status.CompareAndSwap(connected, authing) {
+		if conn.status.Load() != Authed && conn.status.CompareAndSwap(Connected, Authing) {
 			go conn.startAuth()
 		}
 
-		if conn.status.Load() == authed {
+		if conn.status.Load() == Authed {
 			conn.tick()
 		}
 	}

@@ -17,14 +17,14 @@ import (
 	"go.uber.org/zap"
 )
 
-type connStatus uint8
+type ConnStatus uint8
 
 const (
-	disconnect connStatus = iota // 断开
-	connecting                   // 连接中
-	connected                    // 已连接
-	authing                      // 认证中
-	authed                       //已认证
+	Disconnect ConnStatus = iota // 断开
+	Connecting                   // 连接中
+	Connected                    // 已连接
+	Authing                      // 认证中
+	Authed                       //已认证
 
 )
 
@@ -48,8 +48,6 @@ func newConn(addr string, c *Client) *conn {
 		addr: addr,
 	}
 
-	cn.status.Store(disconnect)
-
 	return cn
 }
 
@@ -65,7 +63,7 @@ func (c *conn) startDial() {
 		proto, addr, err = parseProtoAddr(c.addr)
 		if err != nil {
 			c.Error("parse addr failed", zap.Error(err), zap.String("addr", c.addr))
-			c.status.Store(disconnect)
+			c.changeStatus(Disconnect)
 			return
 		}
 	} else {
@@ -83,10 +81,17 @@ func (c *conn) startDial() {
 	})
 	if err != nil {
 		// c.Foucs("conn failed", zap.Error(err))
-		c.status.Store(disconnect)
+		c.changeStatus(Disconnect)
 	} else {
-		c.status.Store(connected)
+		c.changeStatus(Connected)
 		c.Foucs("conn success")
+	}
+}
+
+func (c *conn) changeStatus(status ConnStatus) {
+	c.status.Store(status)
+	if c.c.onConnectChanged != nil {
+		c.c.onConnectChanged(status)
 	}
 }
 
@@ -94,9 +99,9 @@ func (c *conn) startAuth() {
 	err := c.sendAuth()
 	if err != nil { // 如果认证失败，断开链接，让其重连
 		c.Foucs("auth failed", zap.Error(err))
-		c.status.Store(disconnect)
+		c.changeStatus(Disconnect)
 	} else {
-		c.status.Store(authed)
+		c.changeStatus(Authed)
 		c.Foucs("auth success")
 	}
 }
@@ -161,7 +166,7 @@ func (c *conn) tick() {
 }
 
 func (c *conn) reconnect() {
-	c.status.Store(disconnect)
+	c.changeStatus(Disconnect)
 	_ = c.gc.Close()
 }
 
@@ -180,7 +185,7 @@ func (c *conn) sendHeartbeat() {
 }
 
 func (c *conn) close(err error) {
-	c.status.Store(disconnect)
+	c.changeStatus(Disconnect)
 	c.Foucs("client close", zap.String("id", c.c.opts.Uid), zap.String("addr", c.addr), zap.Error(err))
 }
 

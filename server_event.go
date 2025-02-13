@@ -155,7 +155,7 @@ func (s *Server) handleConnack(conn gnet.Conn, req *proto.Connect) {
 
 	s.Info("收到连接。。。", zap.String("from", req.Uid))
 	conn.SetContext(newConnContext(req.Uid))
-	s.connManager.AddConn(req.Uid, conn)
+	s.ConnManager.AddConn(req.Uid, conn)
 
 	s.routeMapLock.RLock()
 	h, ok := s.routeMap[s.opts.ConnPath]
@@ -213,9 +213,9 @@ func (s *Server) Request(uid string, p string, body []byte) (*proto.Response, er
 }
 
 func (s *Server) RequestWithContext(ctx context.Context, uid string, p string, body []byte) (*proto.Response, error) {
-	conn := s.connManager.GetConn(uid)
+	conn := s.ConnManager.GetConn(uid)
 	if conn == nil {
-		return nil, errors.New("conn is nil")
+		return nil, ErrConnIsNil
 	}
 	r := &proto.Request{
 		Id:   s.reqIDGen.Inc(),
@@ -258,9 +258,9 @@ func (s *Server) RequestWithContext(ctx context.Context, uid string, p string, b
 }
 
 func (s *Server) RequestAsync(uid string, p string, body []byte) error {
-	conn := s.connManager.GetConn(uid)
+	conn := s.ConnManager.GetConn(uid)
 	if conn == nil {
-		return errors.New("conn is nil")
+		return ErrConnIsNil
 	}
 	r := &proto.Request{
 		Id:   s.reqIDGen.Inc(),
@@ -283,9 +283,9 @@ func (s *Server) RequestAsync(uid string, p string, body []byte) error {
 }
 
 func (s *Server) Send(uid string, msg *proto.Message) error {
-	conn := s.connManager.GetConn(uid)
+	conn := s.ConnManager.GetConn(uid)
 	if conn == nil {
-		return errors.New("conn is nil")
+		return ErrConnIsNil
 	}
 	data, err := msg.Marshal()
 	if err != nil {
@@ -315,7 +315,7 @@ func (s *Server) OnClose(conn gnet.Conn, err error) (action gnet.Action) {
 	}
 	connCtx := ctx.(*connContext)
 
-	s.connManager.RemoveConn(connCtx.uid.Load())
+	s.ConnManager.RemoveConn(connCtx.uid.Load())
 	s.routeMapLock.RLock()
 	h, ok := s.routeMap[s.opts.ClosePath]
 	s.routeMapLock.RUnlock()

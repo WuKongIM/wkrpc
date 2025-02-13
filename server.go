@@ -31,7 +31,7 @@ type Server struct {
 	messagePool *ants.Pool
 	reqIDGen    atomic.Uint64
 	w           wait.Wait
-	connManager *ConnManager
+	ConnManager *ConnManager
 	metrics     *metrics
 
 	timingWheel *timingwheel.TimingWheel
@@ -57,7 +57,7 @@ func New(addr string, ops ...Option) *Server {
 		Log:         wklog.NewWKLog("Server"),
 		w:           wait.New(),
 		stopper:     syncutil.NewStopper(),
-		connManager: NewConnManager(),
+		ConnManager: NewConnManager(),
 		metrics:     newMetrics(),
 		batchRead:   100,
 		timingWheel: timingwheel.NewTimingWheel(opts.TimingWheelTick, opts.TimingWheelSize),

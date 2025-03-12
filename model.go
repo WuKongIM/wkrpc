@@ -14,6 +14,7 @@ type Handler func(c *Context)
 
 type Context struct {
 	conn    gnet.Conn
+	connCtx *connContext
 	req     *proto.Request
 	connReq *proto.Connect
 	proto   proto.Protocol
@@ -22,11 +23,17 @@ type Context struct {
 
 func NewContext(conn gnet.Conn) *Context {
 
-	return &Context{
+	ct := &Context{
 		conn:  conn,
 		proto: proto.New(),
 		Log:   wklog.NewWKLog("Context"),
 	}
+
+	ctx := conn.Context()
+	if ctx != nil {
+		ct.connCtx = ctx.(*connContext)
+	}
+	return ct
 }
 
 func (c *Context) WriteMessage(m gproto.Message) {
@@ -178,4 +185,11 @@ func (c *Context) WriteConnack(connack *proto.Connack) {
 func (c *Context) Conn() gnet.Conn {
 
 	return c.conn
+}
+
+func (c *Context) Uid() string {
+	if c.connCtx != nil {
+		return c.connCtx.uid.Load()
+	}
+	return ""
 }
